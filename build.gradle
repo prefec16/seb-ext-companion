@@ -26,3 +26,18 @@ dependencies {
 test {
     useJUnitPlatform()
 }
+
+
+jar {
+    manifest {
+        attributes "Main-Class": "prefec16.seb.extcompanion.MainKt"
+    }
+
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+
+    exclude "META-INF/*.RSA"
+    exclude "META-INF/*.SF"
+    exclude "META-INF/*.DSA"
+}
