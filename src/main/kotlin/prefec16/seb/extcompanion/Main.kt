@@ -6,11 +6,19 @@ import io.javalin.Javalin
 import prefec16.seb.config.ConfigExtractor
 import prefec16.seb.crypto.Crypto
 
+const val CUSTOM_USER_AGENT_MODE_KEY = "browserUserAgentWinDesktopMode"
+const val CUSTOM_USER_AGENT_KEY = "browserUserAgentWinDesktopModeCustom"
+const val CUSTOM_USER_AGENT_SUFFIX_KEY = "browserUserAgent"
 const val ORIGINATOR_VERSION_KEY = "originatorVersion"
 const val BROWSER_EXAM_KEY_SALT_KEY = "examKeySalt"
 
+const val SEB_USERAGENT_VERSION = "SEB/1.0.0.0"
+const val DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 $SEB_USERAGENT_VERSION"
+
 @ExperimentalUnsignedTypes
-fun main() {
+fun main(args: Array<String>) {
+    val printHashes = args.toList().contains("--print-hashes")
+
     val app = Javalin.create {
         it.showJavalinBanner = false
     }.start(9999)
@@ -27,9 +35,8 @@ fun main() {
             val configKey = Crypto.computeConfigurationKey(config)
             val browserExamKey = Crypto.computeBrowserExamKey(configKey, examKeySalt)
 
-            val resp = mapOf("configKey" to configKey, "browserExamKey" to browserExamKey)
-            println(resp)
-            ctx.status(200).json(resp)
+            println("Config successfully parsed!")
+            ctx.status(200).json(mapOf("configKey" to configKey, "browserExamKey" to browserExamKey, "userAgent" to getUserAgent(config)))
         }
     }
 
@@ -38,11 +45,26 @@ fun main() {
             val requestHash = Crypto.computeRequestHash(body.url, body.browserExamKey)
             val configKeyHash = Crypto.computeConfigKeyHash(body.url, body.configKey)
 
-            println("calculated requestHash $requestHash and configKeyHash $configKeyHash for ${body.url}")
+            if(printHashes){
+                println("calculated requestHash $requestHash and configKeyHash $configKeyHash for ${body.url}")
+            }
+
             ctx.status(200).json(mapOf("requestHash" to requestHash, "configKeyHash" to configKeyHash))
         }
     }
+}
 
+fun getUserAgent(config: JsonObject): String {
+    return if (config.getIfHas(CUSTOM_USER_AGENT_MODE_KEY)?.asInt == 1) {
+        buildString {
+            append(config.get(CUSTOM_USER_AGENT_KEY).asString).append(" ").append(SEB_USERAGENT_VERSION)
+            with(config.get(CUSTOM_USER_AGENT_SUFFIX_KEY).asString) {
+                if (this.isNotEmpty()) {
+                    append(" ").append(this)
+                }
+            }
+        }
+    } else DEFAULT_USER_AGENT
 }
 
 data class CalculateHeadersBody(val url: String, val browserExamKey: String, val configKey: String)
