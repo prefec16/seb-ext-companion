@@ -11,7 +11,10 @@ const val BROWSER_EXAM_KEY_SALT_KEY = "examKeySalt"
 
 @ExperimentalUnsignedTypes
 fun main() {
-    val app = Javalin.create().start(9999)
+    val app = Javalin.create {
+        it.showJavalinBanner = false
+    }.start(9999)
+
     println("Companion has been started!")
 
     app.post("/keys") { ctx ->
